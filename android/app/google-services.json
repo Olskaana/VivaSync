@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "95060390664",
+    "project_id": "vivasync-61b5b",
+    "storage_bucket": "vivasync-61b5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:95060390664:android:086f03b900925bdca7b2bd",
+        "android_client_info": {
+          "package_name": "com.example.vivasync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDELq4aaidQhWbXpnGi-YgPvonFFbbt0Bw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
