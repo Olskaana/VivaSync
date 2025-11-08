@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -29,21 +30,35 @@ class _RegisterPageState extends State<RegisterPage> {
 
       try {
         // Método direto e simplificado
-        final UserCredential userCredential = 
+        final UserCredential userCredential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
 
+        if (userCredential.user != null) {
+          // Salva o nome no Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          print('✅ Usuário criado: ${userCredential.user!.uid}');
+          Navigator.pushNamed(context, '/home');
+        }
+
         // Verificação simples
         if (userCredential.user != null) {
           print('✅ Usuário criado com sucesso: ${userCredential.user!.uid}');
-          
+
           // Navega para home após um pequeno delay
           await Future.delayed(Duration(milliseconds: 500));
           Navigator.pushNamed(context, '/home');
         }
-        
       } on FirebaseAuthException catch (e) {
         String errorMessage = 'Erro ao criar conta';
         if (e.code == 'weak-password') {
@@ -53,7 +68,7 @@ class _RegisterPageState extends State<RegisterPage> {
         } else if (e.code == 'invalid-email') {
           errorMessage = 'Email inválido';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
@@ -177,7 +192,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       onPressed: _register,
-                      child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
+                      child: const Text('Sign Up',
+                          style: TextStyle(color: Colors.white)),
                     ),
             ],
           ),
