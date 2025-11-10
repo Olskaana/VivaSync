@@ -19,6 +19,7 @@ class _HomePageState extends State<HomePage> {
   List<String> weeks = ['1ª Semana', '2ª Semana', '3ª Semana', '4ª Semana'];
   Map<String, List<String>> weekHabits = {};
   Map<String, Map<String, Map<String, bool>>> weekHabitTracker = {};
+  Map<String, Map<String, Map<String, bool>>> weekHabitGoals = {};
   int indiceAtual = 0;
   bool _isLoading = true;
 
@@ -33,6 +34,7 @@ class _HomePageState extends State<HomePage> {
     for (var week in weeks) {
       weekHabits[week] = [];
       weekHabitTracker[week] = {};
+      weekHabitGoals[week] = {};
     }
   }
 
@@ -59,6 +61,13 @@ class _HomePageState extends State<HomePage> {
                   MapEntry(key, Map<String, bool>.from(value))
                 )
               );
+
+              final goalsData = data[week]?['habitGoals'] ?? {};
+              weekHabitGoals[week] = Map<String, Map<String, bool>>.from(
+                goalsData.map((key, value) => 
+                  MapEntry(key, Map<String, bool>.from(value))
+                )
+              );
             }
             
             selectedWeek = data['selectedWeek'] ?? '1ª Semana';
@@ -82,6 +91,7 @@ class _HomePageState extends State<HomePage> {
       for (var week in weeks) {
         weekHabits[week] = [];
         weekHabitTracker[week] = {};
+        weekHabitGoals[week] = {};
       }
       
       weekHabits['1ª Semana'] = [
@@ -93,13 +103,13 @@ class _HomePageState extends State<HomePage> {
       
       for (var habit in weekHabits['1ª Semana']!) {
         weekHabitTracker['1ª Semana']![habit] = {
-          'Seg': false,
-          'Ter': false,
-          'Qua': false,
-          'Qui': false,
-          'Sex': false,
-          'Sab': false,
-          'Dom': false,
+          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+          'Sex': false, 'Sab': false, 'Dom': false,
+        };
+
+        weekHabitGoals['1ª Semana']![habit] = {
+          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+          'Sex': false, 'Sab': false, 'Dom': false,
         };
       }
     });
@@ -110,6 +120,7 @@ class _HomePageState extends State<HomePage> {
       for (var week in weeks) {
         weekHabits[week] = [];
         weekHabitTracker[week] = {};
+        weekHabitGoals[week] = {};
       }
       selectedWeek = '1ª Semana';
       
@@ -139,6 +150,7 @@ class _HomePageState extends State<HomePage> {
           monthData[week] = {
             'habits': weekHabits[week],
             'habitTracker': weekHabitTracker[week],
+            'habitGoals': weekHabitGoals[week],
           };
         }
 
@@ -160,20 +172,225 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       weekHabits[targetWeek] = List.from(weekHabits[sourceWeek]!);
       weekHabitTracker[targetWeek] = {};
+      weekHabitGoals[targetWeek] = {};
       
       for (var habit in weekHabits[targetWeek]!) {
         weekHabitTracker[targetWeek]![habit] = {
-          'Seg': false,
-          'Ter': false,
-          'Qua': false,
-          'Qui': false,
-          'Sex': false,
-          'Sab': false,
-          'Dom': false,
+          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+          'Sex': false, 'Sab': false, 'Dom': false,
         };
+
+        if (weekHabitGoals[sourceWeek]!.containsKey(habit)) {
+          weekHabitGoals[targetWeek]![habit] = Map.from(weekHabitGoals[sourceWeek]![habit]!);
+        } else {
+          weekHabitGoals[targetWeek]![habit] = {
+            'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+            'Sex': false, 'Sab': false, 'Dom': false,
+          };
+        }
       }
     });
     _saveHabitsToFirestore();
+  }
+
+  void _setHabitGoal(String habit) {
+    final currentGoals = weekHabitGoals[selectedWeek]![habit] ?? {
+      'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+      'Sex': false, 'Sab': false, 'Dom': false,
+    };
+
+    Map<String, bool> selectedDays = Map.from(currentGoals);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Container(
+                padding: EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFF8EBBE), Color(0xFFE2AC3F).withOpacity(0.1)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFE2AC3F).withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.flag, color: Color(0xFFE2AC3F), size: 24),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Definir Meta',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2A0308),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    SizedBox(height: 16),
+                    
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF7BA58D).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Color(0xFF7BA58D).withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        habit,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2A0308),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    
+                    SizedBox(height: 20),
+                    
+                    Text(
+                      'Selecione os dias da semana:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF2A0308),
+                      ),
+                    ),
+                    
+                    SizedBox(height: 16),
+                    
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var day in ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'])
+                          AnimatedContainer(
+                            duration: Duration(milliseconds: 200),
+                            child: ChoiceChip(
+                              label: Text(
+                                day,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: selectedDays[day]! ? Colors.white : Color(0xFF2A0308),
+                                ),
+                              ),
+                              selected: selectedDays[day]!,
+                              onSelected: (bool selected) {
+                                setDialogState(() {
+                                  selectedDays[day] = selected;
+                                });
+                              },
+                              selectedColor: Color(0xFFE2AC3F),
+                              backgroundColor: Colors.grey[100],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    
+                    SizedBox(height: 24),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(color: Color(0xFFE2AC3F)),
+                            ),
+                            child: Text(
+                              'Cancelar',
+                              style: TextStyle(
+                                color: Color(0xFFE2AC3F),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                weekHabitGoals[selectedWeek]![habit] = selectedDays;
+                              });
+                              _saveHabitsToFirestore();
+                              Navigator.of(context).pop();
+                              
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Meta definida para $habit'),
+                                    ],
+                                  ),
+                                  backgroundColor: Color(0xFF7BA58D),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFFE2AC3F),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
+                            ),
+                            child: Text(
+                              'Salvar Meta',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void changeWeek(String week) {
@@ -184,12 +401,9 @@ class _HomePageState extends State<HomePage> {
     Navigator.pop(context);
   }
 
-  // MÉTODO CORRIGIDO: Mudança de mês
   void changeMonth(String newMonth) {
-    // Fecha o bottom sheet primeiro
     Navigator.pop(context);
     
-    // Se é um mês diferente do atual, mostra confirmação
     if (newMonth != selectedMonth) {
       showDialog(
         context: context,
@@ -201,14 +415,12 @@ class _HomePageState extends State<HomePage> {
             actions: [
               TextButton(
                 onPressed: () async {
-                  Navigator.of(context).pop(); // Fecha o dialog
+                  Navigator.of(context).pop();
                   
-                  // Muda o mês e reseta
                   setState(() {
                     selectedMonth = newMonth;
                   });
                   
-                  // Carrega os hábitos do novo mês (ou inicializa se não existir)
                   await _loadHabitsFromFirestore();
                   
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -229,7 +441,6 @@ class _HomePageState extends State<HomePage> {
         },
       );
     } else {
-      // Se é o mesmo mês, só atualiza (embora isso não deva acontecer)
       setState(() {
         selectedMonth = newMonth;
       });
@@ -267,6 +478,14 @@ class _HomePageState extends State<HomePage> {
                     weekHabitTracker[selectedWeek]![controller.text] = 
                         weekHabitTracker[selectedWeek]![oldHabit]!;
                     weekHabitTracker[selectedWeek]!.remove(oldHabit);
+                    
+                    weekHabitGoals[selectedWeek]![controller.text] = 
+                        weekHabitGoals[selectedWeek]![oldHabit] ?? {
+                          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+                          'Sex': false, 'Sab': false, 'Dom': false,
+                        };
+                    weekHabitGoals[selectedWeek]!.remove(oldHabit);
+                    
                     currentHabits[index] = controller.text;
                   });
                   _saveHabitsToFirestore();
@@ -304,13 +523,13 @@ class _HomePageState extends State<HomePage> {
                   setState(() {
                     weekHabits[selectedWeek]!.add(controller.text);
                     weekHabitTracker[selectedWeek]![controller.text] = {
-                      'Seg': false,
-                      'Ter': false,
-                      'Qua': false,
-                      'Qui': false,
-                      'Sex': false,
-                      'Sab': false,
-                      'Dom': false,
+                      'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+                      'Sex': false, 'Sab': false, 'Dom': false,
+                    };
+                    
+                    weekHabitGoals[selectedWeek]![controller.text] = {
+                      'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
+                      'Sex': false, 'Sab': false, 'Dom': false,
                     };
                   });
                   _saveHabitsToFirestore();
@@ -342,7 +561,9 @@ class _HomePageState extends State<HomePage> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  weekHabitTracker[selectedWeek]!.remove(currentHabits[index]);
+                  final habitToDelete = currentHabits[index];
+                  weekHabitTracker[selectedWeek]!.remove(habitToDelete);
+                  weekHabitGoals[selectedWeek]!.remove(habitToDelete);
                   currentHabits.removeAt(index);
                 });
                 _saveHabitsToFirestore();
@@ -494,13 +715,34 @@ class _HomePageState extends State<HomePage> {
   Map<String, Map<String, bool>> get currentWeekHabitTracker {
     return weekHabitTracker[selectedWeek] ?? {};
   }
+  
+  Map<String, Map<String, bool>> get currentWeekHabitGoals {
+    return weekHabitGoals[selectedWeek] ?? {};
+  }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Color(0xFFF8EBBE),
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: Color(0xFFE2AC3F),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Carregando seus hábitos...',
+                style: TextStyle(
+                  color: Color(0xFF2A0308),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -510,96 +752,206 @@ class _HomePageState extends State<HomePage> {
     Widget content;
     if (indiceAtual == 0) {
       content = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: 10),
-            ListTile(
-              title: Text(selectedWeek, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              subtitle: Text('${currentHabits.length} hábitos', style: TextStyle(fontSize: 10)),
-              trailing: Icon(Icons.arrow_drop_down),
-              onTap: _showWeekOptions,
-            ),
-            SizedBox(height: 10),
-            GestureDetector(
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ...['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'].map(
-                            (month) => ListTile(
-                              title: Text(month, style: TextStyle(fontSize: 12)),
-                              onTap: () => changeMonth(month),
-                            ),
+            SizedBox(height: 20),
+            
+            // HEADER ELEGANTE
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFE2AC3F).withOpacity(0.1), Color(0xFF7BA58D).withOpacity(0.1)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.5)),
+              ),
+              child: Column(
+                children: [
+                  // SEMANA SELECIONADA
+                  GestureDetector(
+                    onTap: _showWeekOptions,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
                           ),
                         ],
                       ),
-                    );
-                  },
-                );
-              },
-              child: Center(
-                child: Text(
-                  selectedMonth,
-                  style: TextStyle(
-                    fontSize: 33,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(2.0, 2.0),
-                        blurRadius: 1.0,
-                        color: Color(0xFF2A0308),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedWeek,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2A0308),
+                                ),
+                              ),
+                              Text(
+                                '${currentHabits.length} hábitos',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.arrow_drop_down, color: Color(0xFFE2AC3F)),
+                        ],
                       ),
-                    ],
-                    color: Color(0xFFE2AC3F),
+                    ),
                   ),
-                ),
+                  
+                  SizedBox(height: 16),
+                  
+                  // MÊS
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        builder: (BuildContext context) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Text(
+                                      'Selecionar Mês',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF2A0308),
+                                      ),
+                                    ),
+                                  ),
+                                  ...['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
+                                      'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'].map(
+                                    (month) => ListTile(
+                                      title: Text(
+                                        month,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: month == selectedMonth ? Color(0xFFE2AC3F) : Color(0xFF2A0308),
+                                          fontWeight: month == selectedMonth ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                      ),
+                                      trailing: month == selectedMonth 
+                                          ? Icon(Icons.check, color: Color(0xFFE2AC3F), size: 20)
+                                          : null,
+                                      onTap: () => changeMonth(month),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    child: Text(
+                      selectedMonth,
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFE2AC3F),
+                        shadows: [
+                          Shadow(
+                            offset: Offset(1.0, 1.0),
+                            blurRadius: 2.0,
+                            color: Color(0xFF2A0308).withOpacity(0.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: 8),
+                  
+                  // FRASE INSPIRADORA
+                  Container(
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF7BA58D),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Create a life you can\'t wait to wake up to',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 5),
-            Center(
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 2, horizontal: 10),
-                color: Color(0xFF7BA58D),
-                child: Text(
-                  'Create a life you can\'t wait to wake up to',
-                  style: TextStyle(fontSize: 12, color: Colors.black),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Divider(),
+            
+            SizedBox(height: 20),
+            
+            // LISTA DE HÁBITOS
             Expanded(
               child: currentHabits.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.emoji_objects_outlined, size: 50, color: Colors.grey),
-                          SizedBox(height: 10),
+                          Icon(Icons.emoji_objects_outlined, size: 60, color: Color(0xFFE2AC3F)),
+                          SizedBox(height: 16),
                           Text(
                             'Nenhum hábito nesta semana',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Color(0xFF2A0308),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          SizedBox(height: 10),
+                          SizedBox(height: 8),
                           Text(
-                            'Clique no + para adicionar hábitos!',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                            textAlign: TextAlign.center,
+                            'Toque no + para começar!',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
                           ),
                           SizedBox(height: 20),
                           if (previousWeeks.isNotEmpty)
-                            ElevatedButton(
-                              onPressed: () {
-                                _showCopyOptions(selectedWeek);
-                              },
-                              child: Text('Copiar de Semana Anterior'),
+                            ElevatedButton.icon(
+                              onPressed: () => _showCopyOptions(selectedWeek),
+                              icon: Icon(Icons.copy, size: 16),
+                              label: Text('Copiar de Semana Anterior'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF7BA58D),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                         ],
                       ),
@@ -608,75 +960,153 @@ class _HomePageState extends State<HomePage> {
                       itemCount: currentHabits.length,
                       itemBuilder: (context, index) {
                         String habit = currentHabits[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF7BA58D),
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        habit,
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.edit, size: 15, color: Colors.black),
-                                          onPressed: () => editHabit(index),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.delete, size: 15, color: Colors.red),
-                                          onPressed: () => _deleteHabit(index),
-                                        ),
-                                      ],
-                                    ),
+                        return Container(
+                          margin: EdgeInsets.only(bottom: 12),
+                          child: Material(
+                            elevation: 2,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF7BA58D).withOpacity(0.1),
+                                    Color(0xFFE2AC3F).withOpacity(0.05),
                                   ],
                                 ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.grey[200]!,
+                                  width: 1,
+                                ),
                               ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              child: Column(
                                 children: [
-                                  for (var day in ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'])
-                                    Column(
+                                  // CABEÇALHO DO HÁBITO
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF7BA58D).withOpacity(0.8),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(16),
+                                        topRight: Radius.circular(16),
+                                      ),
+                                    ),
+                                    child: Row(
                                       children: [
-                                        GestureDetector(
-                                          onTap: () {
-                                            toggleHabit(habit, day);
-                                          },
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: weekHabitTracker[selectedWeek]![habit]![day]!
-                                                  ? Color(0xFFE2AC3F)
-                                                  : Colors.transparent,
-                                              border: Border.all(color: Color(0xFF2A0308), width: 2),
+                                        Expanded(
+                                          child: Text(
+                                            habit,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
                                             ),
-                                            width: 20,
-                                            height: 40,
-                                            child: weekHabitTracker[selectedWeek]![habit]![day]!
-                                                ? Icon(Icons.check, color: Colors.white, size: 12)
-                                                : null,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                        Text(day, style: TextStyle(color: Colors.black, fontSize: 12)),
+                                        Row(
+                                          children: [
+                                            // BOTÃO DE META (COM MAIS ESPAÇAMENTO)
+                                            IconButton(
+                                              icon: Container(
+                                                padding: EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange.withOpacity(0.2),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Text(
+                                                  '🔥',
+                                                  style: TextStyle(fontSize: 14),
+                                                ),
+                                              ),
+                                              onPressed: () => _setHabitGoal(habit),
+                                              tooltip: 'Definir meta',
+                                              padding: EdgeInsets.zero,
+                                              constraints: BoxConstraints(),
+                                            ),
+                                            SizedBox(width: 12), // MAIS ESPAÇAMENTO
+                                            // BOTÃO EDITAR
+                                            IconButton(
+                                              icon: Icon(Icons.edit, size: 18, color: Colors.white),
+                                              onPressed: () => editHabit(index),
+                                              padding: EdgeInsets.zero,
+                                              constraints: BoxConstraints(),
+                                            ),
+                                            SizedBox(width: 12), // MAIS ESPAÇAMENTO
+                                            // BOTÃO DELETAR
+                                            IconButton(
+                                              icon: Icon(Icons.delete, size: 18, color: Colors.white),
+                                              onPressed: () => _deleteHabit(index),
+                                              padding: EdgeInsets.zero,
+                                              constraints: BoxConstraints(),
+                                            ),
+                                          ],
+                                        ),
                                       ],
                                     ),
+                                  ),
+                                  
+                                  // DIAS DA SEMANA
+                                  Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        for (var day in ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'])
+                                          Column(
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () => toggleHabit(habit, day),
+                                                child: AnimatedContainer(
+                                                  duration: Duration(milliseconds: 200),
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                        ? Color(0xFFE2AC3F)
+                                                        : Colors.transparent,
+                                                    border: Border.all(
+                                                      color: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                          ? Color(0xFFE2AC3F)
+                                                          : Color(0xFF2A0308).withOpacity(0.3),
+                                                      width: 2,
+                                                    ),
+                                                    boxShadow: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                        ? [
+                                                            BoxShadow(
+                                                              color: Color(0xFFE2AC3F).withOpacity(0.3),
+                                                              blurRadius: 4,
+                                                              offset: Offset(0, 2),
+                                                            )
+                                                          ]
+                                                        : [],
+                                                  ),
+                                                  child: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                      ? Icon(Icons.check, color: Colors.white, size: 16)
+                                                      : null,
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                day,
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Color(0xFF2A0308),
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
                         );
                       },
@@ -688,7 +1118,10 @@ class _HomePageState extends State<HomePage> {
     } else if (indiceAtual == 2) {
       content = AccountPage();
     } else {
-      content = ProgressPage(habitTracker: currentWeekHabitTracker);
+      content = ProgressPage(
+        habitTracker: currentWeekHabitTracker,
+        habitGoals: currentWeekHabitGoals,
+      );
     }
 
     return Scaffold(
@@ -698,28 +1131,55 @@ class _HomePageState extends State<HomePage> {
           ? FloatingActionButton(
               backgroundColor: Color(0xFFE2AC3F),
               onPressed: addHabit,
-              child: Icon(Icons.add),
+              child: Icon(Icons.add, color: Colors.white),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 4,
             )
           : null,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color.fromARGB(255, 226, 172, 63),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: "Progress",
+          child: BottomNavigationBar(
+            backgroundColor: Color(0xFFE2AC3F),
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home),
+                label: "Home",
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.bar_chart_outlined),
+                activeIcon: Icon(Icons.bar_chart),
+                label: "Progress",
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outlined),
+                activeIcon: Icon(Icons.person),
+                label: "Account",
+              ),
+            ],
+            currentIndex: indiceAtual,
+            onTap: _onItemTapped,
+            selectedItemColor: Color(0xFF2A0308),
+            unselectedItemColor: Color(0xFF2A0308).withOpacity(0.6),
+            selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
+            type: BottomNavigationBarType.fixed,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: "Account",
-          ),
-        ],
-        currentIndex: indiceAtual,
-        onTap: _onItemTapped,
-        selectedItemColor: Color.fromARGB(255, 42, 3, 8),
+        ),
       ),
     );
   }

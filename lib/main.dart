@@ -31,7 +31,10 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/register': (context) => RegisterPage(),
         '/home': (context) => HomePage(),
-        '/progress': (context) => ProgressPage(habitTracker: const {},),
+        '/progress': (context) => ProgressPage(
+          habitTracker: {},
+          habitGoals: {},
+        ),
         '/account': (context) => AccountPage(),
       },
     );

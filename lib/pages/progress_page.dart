@@ -5,29 +5,35 @@ import 'package:flutter/material.dart';
 
 class ProgressPage extends StatelessWidget {
   final Map<String, Map<String, bool>> habitTracker;
+  final Map<String, Map<String, bool>> habitGoals;
 
-  ProgressPage({super.key, required this.habitTracker});
+  const ProgressPage({
+    super.key, 
+    required this.habitTracker,
+    required this.habitGoals,
+  });
 
   // Calcular estatísticas
   Map<String, dynamic> _calculateStats() {
     int totalHabits = habitTracker.length;
-    int totalPossibleCompletions = totalHabits * 7; // 7 dias na semana
     int totalCompleted = 0;
-    double weeklyCompletionRate = 0.0;
+    int totalGoalDays = 0;
 
     habitTracker.forEach((habit, days) {
       totalCompleted += days.values.where((isCompleted) => isCompleted).length;
+      
+      // Calcular dias de meta
+      final goalDays = habitGoals[habit] ?? {};
+      totalGoalDays += goalDays.values.where((isGoal) => isGoal).length;
     });
 
-    if (totalPossibleCompletions > 0) {
-      weeklyCompletionRate = (totalCompleted / totalPossibleCompletions) * 100;
-    }
+    double completionRate = totalGoalDays > 0 ? (totalCompleted / totalGoalDays) * 100 : 0.0;
 
     return {
       'totalHabits': totalHabits,
       'totalCompleted': totalCompleted,
-      'weeklyCompletionRate': weeklyCompletionRate,
-      'totalPossible': totalPossibleCompletions,
+      'totalGoalDays': totalGoalDays,
+      'completionRate': completionRate,
     };
   }
 
@@ -37,42 +43,21 @@ class ProgressPage extends StatelessWidget {
 
     habitTracker.forEach((habit, days) {
       int completed = days.values.where((isCompleted) => isCompleted).length;
-      double percentage = (completed / 7) * 100;
+      final goalDays = habitGoals[habit] ?? {};
+      int goalCount = goalDays.values.where((isGoal) => isGoal).length;
+      
+      double percentage = goalCount > 0 ? (completed / goalCount) * 100 : 0.0;
       
       ranking.add({
         'habit': habit,
         'completed': completed,
+        'goal': goalCount,
         'percentage': percentage,
       });
     });
 
-    ranking.sort((a, b) => b['completed'].compareTo(a['completed']));
+    ranking.sort((a, b) => b['percentage'].compareTo(a['percentage']));
     return ranking;
-  }
-
-  // Widget para item da legenda
-  Widget _buildLegendItem(Color color, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[700],
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -138,14 +123,14 @@ class ProgressPage extends StatelessWidget {
                                 Color(0xFF7BA58D),
                               ),
                               _buildStatCard(
-                                'Completos',
-                                '${stats['totalCompleted']}/${stats['totalPossible']}',
+                                'Realizado',
+                                '${stats['totalCompleted']}/${stats['totalGoalDays']}',
                                 Icons.check_circle,
                                 Color(0xFFE2AC3F),
                               ),
                               _buildStatCard(
-                                'Taxa',
-                                '${stats['weeklyCompletionRate'].toStringAsFixed(1)}%',
+                                'Atingido',
+                                '${stats['completionRate'].toStringAsFixed(1)}%',
                                 Icons.trending_up,
                                 Color(0xFF2A0308),
                               ),
@@ -157,7 +142,7 @@ class ProgressPage extends StatelessWidget {
                   ),
                   SizedBox(height: 20),
 
-                  // Gráfico de Barras - VERSÃO CORRIGIDA
+                  // GRÁFICO HORIZONTAL - Meta vs Realizado (SEM ROLAGEM)
                   Card(
                     elevation: 4,
                     color: Colors.white,
@@ -166,7 +151,7 @@ class ProgressPage extends StatelessWidget {
                       child: Column(
                         children: [
                           Text(
-                            '📈 Progresso por Hábito',
+                            '📊 Meta vs Realizado',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -175,7 +160,7 @@ class ProgressPage extends StatelessWidget {
                           ),
                           SizedBox(height: 10),
                           Text(
-                            'Dias completados na semana',
+                            'Comparação entre dias planejados e realizados',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
@@ -183,137 +168,17 @@ class ProgressPage extends StatelessWidget {
                           ),
                           SizedBox(height: 20),
                           
-                          // CONTAINER DO GRÁFICO COM ALTURA AJUSTADA
-                          Container(
-                            height: 350, // Altura aumentada para dar mais espaço
-                            child: BarChart(
-                              BarChartData(
-                                alignment: BarChartAlignment.spaceAround,
-                                maxY: 7,
-                                minY: 0,
-                                barGroups: _createBarGroups(),
-                                
-                                // ESPAÇAMENTO ENTRE BARRAS PARA CABER OS RÓTULOS
-                                groupsSpace: habitTracker.length > 3 ? 20 : 30,
-                                
-                                titlesData: FlTitlesData(
-                                  show: true,
-                                  topTitles: AxisTitles(
-                                    sideTitles: SideTitles(showTitles: false),
-                                  ),
-                                  rightTitles: AxisTitles(
-                                    sideTitles: SideTitles(showTitles: false),
-                                  ),
-                                  
-                                  // TÍTULOS INFERIORES (NOMES DOS HÁBITOS) - CORRIGIDO
-                                  bottomTitles: AxisTitles(
-                                    sideTitles: SideTitles(
-                                      showTitles: true,
-                                      getTitlesWidget: (double value, TitleMeta meta) {
-                                        if (value.toInt() < habitTracker.keys.length) {
-                                          final habitName = habitTracker.keys.elementAt(value.toInt());
-                                          
-                                          // ABREVIAÇÃO MAIS AGRESSIVA PARA NOMES LONGOS
-                                          String displayName;
-                                          if (habitName.length > 8) {
-                                            displayName = '${habitName.substring(0, 8)}...';
-                                          } else {
-                                            displayName = habitName;
-                                          }
-                                          
-                                          return Padding(
-                                            padding: EdgeInsets.only(top: 12), // Mais espaço acima
-                                            child: Transform.rotate(
-                                              angle: -45 * 3.1415927 / 180,
-                                              child: Text(
-                                                displayName,
-                                                style: TextStyle(
-                                                  fontSize: 9, // Fonte um pouco menor
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF2A0308),
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                        return Text('');
-                                      },
-                                      reservedSize: 42, // Espaço reservado para os rótulos
-                                    ),
-                                  ),
-                                  
-                                  // TÍTULOS ESQUERDOS (NÚMEROS)
-                                  leftTitles: AxisTitles(
-                                    sideTitles: SideTitles(
-                                      showTitles: true,
-                                      interval: 1,
-                                      reservedSize: 28, // Espaço reservado para os números
-                                      getTitlesWidget: (double value, TitleMeta meta) {
-                                        return Padding(
-                                          padding: EdgeInsets.only(right: 8),
-                                          child: Text(
-                                            value.toInt().toString(),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF2A0308),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                
-                                borderData: FlBorderData(
-                                  show: true,
-                                  border: Border.all(color: Color(0xFFE2AC3F), width: 1),
-                                ),
-                                
-                                gridData: FlGridData(
-                                  show: true,
-                                  drawVerticalLine: false,
-                                  getDrawingHorizontalLine: (value) {
-                                    return FlLine(
-                                      color: Colors.grey[300],
-                                      strokeWidth: 1,
-                                    );
-                                  },
-                                ),
-                                
-                                barTouchData: BarTouchData(
-                                  enabled: true,
-                                  touchTooltipData: BarTouchTooltipData(
-                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                      final habitName = habitTracker.keys.elementAt(groupIndex);
-                                      final completed = rod.toY.toInt();
-                                      return BarTooltipItem(
-                                        '$habitName\n$completed/7 dias',
-                                        TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      );
-                                    },
-                                    tooltipMargin: 10,
-                                    getTooltipColor: (group) => Color(0xFF2A0308),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                          // GRÁFICO DE BARRAS HORIZONTAIS - TODOS OS HÁBITOS VISÍVEIS
+                          _buildHorizontalBarChart(),
                           
-                          // LEGENDA DO GRÁFICO
+                          // LEGENDA
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _buildLegendItem(Color(0xFFE2AC3F), '50-79%'),
-                              SizedBox(width: 16),
-                              _buildLegendItem(Colors.green, '80-100%'),
-                              SizedBox(width: 16),
-                              _buildLegendItem(Colors.red, '0-49%'),
+                              _buildLegendItem(Color(0xFF7BA58D), 'Meta'),
+                              SizedBox(width: 20),
+                              _buildLegendItem(Color(0xFFE2AC3F), 'Realizado'),
                             ],
                           ),
                         ],
@@ -332,7 +197,7 @@ class ProgressPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '🏆 Ranking de Hábitos',
+                            '🏆 Desempenho dos Hábitos',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -341,7 +206,7 @@ class ProgressPage extends StatelessWidget {
                           ),
                           SizedBox(height: 10),
                           Text(
-                            'Ordenado por taxa de conclusão',
+                            'Ordenado por % de meta atingida',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
@@ -403,23 +268,15 @@ class ProgressPage extends StatelessWidget {
                                             minHeight: 6,
                                             borderRadius: BorderRadius.circular(3),
                                           ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            '${habit['completed']}/${habit['goal']} dias (${habit['percentage'].toStringAsFixed(0)}%)',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
                                         ],
-                                      ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      '${habit['completed']}/7',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2A0308),
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      '${habit['percentage'].toStringAsFixed(0)}%',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
                                       ),
                                     ),
                                   ],
@@ -468,36 +325,164 @@ class ProgressPage extends StatelessWidget {
     );
   }
 
+  Widget _buildLegendItem(Color color, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[700],
+          ),
+        ),
+      ],
+    );
+  }
+
   Color _getProgressColor(double percentage) {
     if (percentage >= 80) return Colors.green;
     if (percentage >= 50) return Color(0xFFE2AC3F);
     return Colors.red;
   }
 
-  List<BarChartGroupData> _createBarGroups() {
-    List<BarChartGroupData> barGroups = [];
-    int habitIndex = 0;
-
-    habitTracker.forEach((habit, days) {
-      int completedCount = days.values.where((isCompleted) => isCompleted).length;
-
-      barGroups.add(
-        BarChartGroupData(
-          x: habitIndex,
-          barRods: [
-            BarChartRodData(
-              toY: completedCount.toDouble(),
-              color: _getProgressColor((completedCount / 7) * 100),
-              width: 20,
-              borderRadius: BorderRadius.circular(5),
-            ),
-          ],
-        ),
-      );
-
-      habitIndex++;
-    });
-
-    return barGroups;
+  Widget _buildHorizontalBarChart() {
+    final habits = habitTracker.keys.toList();
+    
+    return Column(
+      children: habits.map((habit) {
+        final completed = habitTracker[habit]!.values.where((isCompleted) => isCompleted).length;
+        final goal = habitGoals[habit]?.values.where((isGoal) => isGoal).length ?? 0;
+        final maxDays = completed > goal ? completed : goal;
+        
+        return Container(
+          margin: EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Nome do hábito
+              Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: Text(
+                  habit,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2A0308),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              
+              // Barras de progresso
+              Row(
+                children: [
+                  // Barra da META
+                  Expanded(
+                    flex: goal > 0 ? goal : 0,
+                    child: Container(
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(0xFF7BA58D),
+                        borderRadius: BorderRadius.horizontal(
+                          left: Radius.circular(4),
+                          right: goal > 0 && completed > 0 ? Radius.zero : Radius.circular(4),
+                        ),
+                      ),
+                      child: goal > 0 ? Center(
+                        child: Text(
+                          '$goal',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ) : SizedBox(),
+                    ),
+                  ),
+                  
+                  // Barra do REALIZADO
+                  Expanded(
+                    flex: completed > 0 ? completed : 0,
+                    child: Container(
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFE2AC3F),
+                        borderRadius: BorderRadius.horizontal(
+                          left: goal > 0 && completed > 0 ? Radius.zero : Radius.circular(4),
+                          right: Radius.circular(4),
+                        ),
+                      ),
+                      child: completed > 0 ? Center(
+                        child: Text(
+                          '$completed',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ) : SizedBox(),
+                    ),
+                  ),
+                  
+                  // Espaço vazio se necessário (máximo 7 dias)
+                  if (maxDays < 7)
+                    Expanded(
+                      flex: 7 - maxDays,
+                      child: Container(
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.horizontal(
+                            right: Radius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              
+              // Labels abaixo das barras
+              Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Meta: $goal dias',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Realizado: $completed dias',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
   }
 }
