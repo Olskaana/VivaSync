@@ -29,7 +29,6 @@ class _RegisterPageState extends State<RegisterPage> {
       setState(() => _isLoading = true);
 
       try {
-        // Método direto e simplificado
         final UserCredential userCredential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
@@ -37,7 +36,6 @@ class _RegisterPageState extends State<RegisterPage> {
         );
 
         if (userCredential.user != null) {
-          // Salva o nome no Firestore
           await FirebaseFirestore.instance
               .collection('users')
               .doc(userCredential.user!.uid)
@@ -47,15 +45,13 @@ class _RegisterPageState extends State<RegisterPage> {
             'createdAt': FieldValue.serverTimestamp(),
           });
 
-          print('✅ Usuário criado: ${userCredential.user!.uid}');
+          print('Usuário criado: ${userCredential.user!.uid}');
           Navigator.pushNamed(context, '/home');
         }
 
-        // Verificação simples
         if (userCredential.user != null) {
-          print('✅ Usuário criado com sucesso: ${userCredential.user!.uid}');
+          print('Usuário criado com sucesso: ${userCredential.user!.uid}');
 
-          // Navega para home após um pequeno delay
           await Future.delayed(Duration(milliseconds: 500));
           Navigator.pushNamed(context, '/home');
         }
@@ -95,7 +91,7 @@ class _RegisterPageState extends State<RegisterPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const Text(
-                "Create Account",
+                "Criar conta",
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
@@ -108,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  hintText: 'Name',
+                  hintText: 'Nome',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -149,7 +145,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  hintText: 'Password',
+                  hintText: 'Senha',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -171,7 +167,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  hintText: 'Confirm Password',
+                  hintText: 'Confirmar senha',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -192,7 +188,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       onPressed: _register,
-                      child: const Text('Sign Up',
+                      child: const Text('Criar conta',
                           style: TextStyle(color: Colors.white)),
                     ),
             ],

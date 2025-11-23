@@ -15,18 +15,9 @@ class WelcomePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
              Image.asset("images/Logo.png",
-             height: 250,
-             width: 250,
+             height: 350,
+             width: 350,
              ),
-             SizedBox(height: 50),
-             Text(
-              "Welcome to VivaSync",
-              style: TextStyle(
-                fontSize: 35,
-                fontWeight: FontWeight.bold,
-                color: Color.fromRGBO(226, 172, 63, 1),
-              ),
-            ),
              SizedBox(height: 40),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -36,7 +27,7 @@ class WelcomePage extends StatelessWidget {
               onPressed: () {
                 Navigator.pushNamed(context, '/login');
               },
-              child:  Text('Login', style: TextStyle(color: Colors.black)),
+              child:  Text('Entrar', style: TextStyle(color: Colors.black)),
             ),
              SizedBox(height: 20),
             ElevatedButton(
@@ -47,7 +38,7 @@ class WelcomePage extends StatelessWidget {
               onPressed: () {
                 Navigator.pushNamed(context, '/register');
               },
-              child:  Text('Register', style: TextStyle(color: Colors.black)),
+              child:  Text('Criar conta', style: TextStyle(color: Colors.black)),
             ),
           ],
         ),

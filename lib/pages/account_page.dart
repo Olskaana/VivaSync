@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -25,10 +26,11 @@ class _AccountPageState extends State<AccountPage> {
   String? _imageUrl;
   final ImagePicker _picker = ImagePicker();
   
-  // Controladores para edição
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  final String imgbbApiKey = 'd223e950b980923feaaffc85be550607';
 
   @override
   void initState() {
@@ -78,69 +80,137 @@ class _AccountPageState extends State<AccountPage> {
       );
 
       if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-        });
+        final file = File(image.path);
         
-        // Upload automático quando seleciona a imagem
-        await _uploadImage();
+        if (await file.exists() && await file.length() > 0) {
+          setState(() {
+            _selectedImage = file;
+          });
+          
+          await _uploadToFreeService();
+        } else {
+          throw Exception('Arquivo de imagem inválido');
+        }
       }
     } catch (e) {
       print('Erro ao selecionar imagem: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao selecionar imagem: $e')),
-      );
+      _showError('Erro ao selecionar imagem');
     }
   }
 
-  Future<void> _uploadImage() async {
-    if (_selectedImage == null || _currentUser == null) return;
+  Future<void> _uploadToFreeService() async {
+    if (_selectedImage == null) return;
 
     try {
       setState(() {
         _isLoading = true;
       });
 
-      // Referência do Storage
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('user_profile_images')
-          .child('${_currentUser!.uid}.jpg');
+      String? imageUrl = await _uploadToImgBB(_selectedImage!);
 
-      // Faz upload da imagem
-      await storageRef.putFile(_selectedImage!);
-      
-      // Pega a URL da imagem
-      final downloadUrl = await storageRef.getDownloadURL();
+      if (imageUrl == null) {
+        imageUrl = await _convertToBase64(_selectedImage!);
+      }
 
-      // Salva a URL no Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUser!.uid)
-          .set({
-            'photoUrl': downloadUrl,
-            'lastUpdated': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-      setState(() {
-        _imageUrl = downloadUrl;
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Foto atualizada com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (imageUrl != null) {
+        await _saveImageUrl(imageUrl);
+        
+        setState(() {
+          _imageUrl = imageUrl;
+          _isLoading = false;
+        });
+        
+        _showSuccess('Foto atualizada com sucesso!');
+      } else {
+        throw Exception('Falha em todos os métodos de upload');
+      }
 
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao fazer upload: $e')),
+      print('Erro no upload: $e');
+      _showError('Erro ao fazer upload da imagem');
+    }
+  }
+
+  Future<String?> _uploadToImgBB(File image) async {
+    try {
+      final bytes = await image.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      
+      final response = await http.post(
+        Uri.parse('https://api.imgbb.com/1/upload'),
+        body: {
+          'key': imgbbApiKey,
+          'image': base64Image,
+        },
       );
+      
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return jsonData['data']['url'];
+      } else {
+        print('ImgBB error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Erro ImgBB: $e');
+      return null;
+    }
+  }
+
+  Future<String?> _convertToBase64(File image) async {
+    try {
+      final bytes = await image.readAsBytes();
+      if (bytes.length > 1048576) { 
+        throw Exception('Imagem muito grande para Base64');
+      }
+      final base64Image = base64Encode(bytes);
+      return 'data:image/jpeg;base64,$base64Image';
+    } catch (e) {
+      print('Erro Base64: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveImageUrl(String imageUrl) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUser!.uid)
+        .set({
+          'photoUrl': imageUrl,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+  }
+
+  void _removePhoto() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .set({
+            'photoUrl': FieldValue.delete(),
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      setState(() {
+        _imageUrl = null;
+        _selectedImage = null;
+        _isLoading = false;
+      });
+
+      _showSuccess('Foto removida com sucesso!');
+
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Erro ao remover foto');
     }
   }
 
@@ -184,50 +254,22 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-  void _removePhoto() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
 
-      // Remove do Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUser!.uid)
-          .set({
-            'photoUrl': FieldValue.delete(),
-            'lastUpdated': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-      // Remove do Storage (opcional)
-      try {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('user_profile_images')
-            .child('${_currentUser!.uid}.jpg');
-        await storageRef.delete();
-      } catch (e) {
-        print('Imagem não encontrada no storage: $e');
-      }
-
-      setState(() {
-        _imageUrl = null;
-        _selectedImage = null;
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Foto removida com sucesso!')),
-      );
-
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao remover foto: $e')),
-      );
-    }
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   void _saveUserData() async {
@@ -263,20 +305,10 @@ class _AccountPageState extends State<AccountPage> {
         _userData = userData;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Dados atualizados com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      _showSuccess('Dados atualizados com sucesso!');
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao salvar: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Erro ao salvar: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -333,6 +365,62 @@ class _AccountPageState extends State<AccountPage> {
     return name.length >= 2 ? name.substring(0, 2).toUpperCase() : name[0].toUpperCase();
   }
 
+  ImageProvider? _buildImageProvider() {
+    if (_imageUrl != null) {
+      if (_imageUrl!.startsWith('data:image')) {
+        return MemoryImage(base64.decode(_imageUrl!.split(',').last));
+      } else {
+        return NetworkImage(_imageUrl!);
+      }
+    } else if (_selectedImage != null) {
+      return FileImage(_selectedImage!);
+    }
+    return null;
+  }
+
+  Widget? _buildImagePlaceholder() {
+    if (_imageUrl == null && _selectedImage == null) {
+      return Text(
+        _getUserInitials(),
+        style: TextStyle(
+          fontSize: 40,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }
+    return null;
+  }
+
+  Widget _buildProfileImage() {
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 70,
+          backgroundColor: Colors.green,
+          backgroundImage: _buildImageProvider(),
+          child: _buildImagePlaceholder(),
+        ),
+        if (_isEditing)
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                onPressed: _showImagePickerOptions,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildEditableField(String label, TextEditingController controller, String hintText, TextInputType keyboardType) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,88 +449,63 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Minha Conta')),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
+Widget build(BuildContext context) {
+  if (_isLoading) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Minha Conta'),
-        actions: [
-          if (!_isEditing)
-            IconButton(
-              icon: Icon(Icons.edit),
-              onPressed: () {
-                setState(() {
-                  _isEditing = true;
-                });
-              },
-            ),
-          if (_isEditing)
-            IconButton(
-              icon: Icon(Icons.close),
-              onPressed: () {
-                setState(() {
-                  _isEditing = false;
-                  _loadUserData();
-                });
-              },
-            ),
-        ],
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          },
+        ),
       ),
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+    return Scaffold(
+    appBar: AppBar(
+      title: Text('Minha Conta'),
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back),
+        onPressed: () {
+          // Volta para a Home
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        },
+      ),
+      actions: [
+        if (!_isEditing)
+          IconButton(
+            icon: Icon(Icons.edit),
+            onPressed: () {
+              setState(() {
+                _isEditing = true;
+              });
+            },
+          ),
+        if (_isEditing)
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: () {
+              setState(() {
+                _isEditing = false;
+                _loadUserData();
+              });
+            },
+          ),
+      ],
+    ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Avatar com opção de edição
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 70,
-                    backgroundColor: Colors.green,
-                    backgroundImage: _imageUrl != null
-                        ? NetworkImage(_imageUrl!) as ImageProvider
-                        : _selectedImage != null
-                            ? FileImage(_selectedImage!)
-                            : null,
-                    child: _imageUrl == null && _selectedImage == null
-                        ? Text(
-                            _getUserInitials(),
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
-                  ),
-                  if (_isEditing)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                        ),
-                        child: IconButton(
-                          icon: Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          onPressed: _showImagePickerOptions,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              _buildProfileImage(),
               SizedBox(height: 30),
 
-              // Campos editáveis
               _buildEditableField(
                 'Nome Completo',
                 _nameController,
@@ -464,7 +527,6 @@ class _AccountPageState extends State<AccountPage> {
                 TextInputType.phone,
               ),
 
-              // Gênero
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -496,7 +558,6 @@ class _AccountPageState extends State<AccountPage> {
                 ],
               ),
 
-              // Email (não editável)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -522,7 +583,6 @@ class _AccountPageState extends State<AccountPage> {
                 ],
               ),
 
-              // Botões de ação
               if (_isEditing)
                 Column(
                   children: [

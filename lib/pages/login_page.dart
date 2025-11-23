@@ -61,11 +61,11 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const Text(
-                "Login",
+                "Entrar",
                 style: TextStyle(
                   fontSize: 40,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromRGBO(226, 172, 63, 1),
+                  color: Colors.green,
                 ),
               ),
               const SizedBox(height: 40),
@@ -94,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  hintText: 'Password',
+                  hintText: 'Senha',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -111,11 +111,11 @@ class _LoginPageState extends State<LoginPage> {
                   ? CircularProgressIndicator()
                   : ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color.fromRGBO(226, 172, 63, 1),
+                        backgroundColor: Colors.green,
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       onPressed: _login,
-                      child: const Text('Sign In', style: TextStyle(color: Colors.black)),
+                      child: const Text('Entrar', style: TextStyle(color: Colors.black)),
                     ),
             ],
           ),

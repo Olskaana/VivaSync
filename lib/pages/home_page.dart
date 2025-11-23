@@ -16,17 +16,60 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String selectedWeek = '1ª Semana';
   String selectedMonth = 'SETEMBRO';
-  List<String> weeks = ['1ª Semana', '2ª Semana', '3ª Semana', '4ª Semana'];
+  List<String> weeks = ['1ª Semana', '2ª Semana', '3ª Semana', '4ª Semana', '5ª Semana'];
   Map<String, List<String>> weekHabits = {};
   Map<String, Map<String, Map<String, bool>>> weekHabitTracker = {};
   Map<String, Map<String, Map<String, bool>>> weekHabitGoals = {};
   int indiceAtual = 0;
   bool _isLoading = true;
 
+  String _getCurrentMonth() {
+    final months = [
+      'JANEIRO',
+      'FEVEREIRO',
+      'MARÇO',
+      'ABRIL',
+      'MAIO',
+      'JUNHO',
+      'JULHO',
+      'AGOSTO',
+      'SETEMBRO',
+      'OUTUBRO',
+      'NOVEMBRO',
+      'DEZEMBRO'
+    ];
+    return months[DateTime.now().month - 1];
+  }
+
+  String _getCurrentWeek() {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+
+    int daysFromStart = now.difference(firstDayOfMonth).inDays;
+
+    int weekNumber = (daysFromStart ~/ 7) + 1;
+
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    bool canHaveFiveWeeks = lastDayOfMonth.day >= 29;
+
+    int maxWeeks = canHaveFiveWeeks ? 5 : 4;
+    weekNumber = weekNumber.clamp(1, maxWeeks);
+
+    return '${weekNumber}ª Semana';
+  }
+
+  void _initializeCurrentDate() {
+    setState(() {
+      selectedMonth = _getCurrentMonth();
+      selectedWeek = _getCurrentWeek();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _initializeWeeks();
+    _initializeCurrentDate();
     _loadHabitsFromFirestore();
   }
 
@@ -54,22 +97,18 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             for (var week in weeks) {
               weekHabits[week] = List<String>.from(data[week]?['habits'] ?? []);
-              
+
               final trackerData = data[week]?['habitTracker'] ?? {};
               weekHabitTracker[week] = Map<String, Map<String, bool>>.from(
-                trackerData.map((key, value) => 
-                  MapEntry(key, Map<String, bool>.from(value))
-                )
-              );
+                  trackerData.map((key, value) =>
+                      MapEntry(key, Map<String, bool>.from(value))));
 
               final goalsData = data[week]?['habitGoals'] ?? {};
               weekHabitGoals[week] = Map<String, Map<String, bool>>.from(
-                goalsData.map((key, value) => 
-                  MapEntry(key, Map<String, bool>.from(value))
-                )
-              );
+                  goalsData.map((key, value) =>
+                      MapEntry(key, Map<String, bool>.from(value))));
             }
-            
+
             selectedWeek = data['selectedWeek'] ?? '1ª Semana';
           });
         } else {
@@ -93,23 +132,33 @@ class _HomePageState extends State<HomePage> {
         weekHabitTracker[week] = {};
         weekHabitGoals[week] = {};
       }
-      
+
       weekHabits['1ª Semana'] = [
         'Fazer corrida de 10km',
         'Estudar para as provas',
         'Ir para a aula de meditação',
         'Ler um livro'
       ];
-      
+
       for (var habit in weekHabits['1ª Semana']!) {
         weekHabitTracker['1ª Semana']![habit] = {
-          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-          'Sex': false, 'Sab': false, 'Dom': false,
+          'Seg': false,
+          'Ter': false,
+          'Qua': false,
+          'Qui': false,
+          'Sex': false,
+          'Sab': false,
+          'Dom': false,
         };
 
         weekHabitGoals['1ª Semana']![habit] = {
-          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-          'Sex': false, 'Sab': false, 'Dom': false,
+          'Seg': false,
+          'Ter': false,
+          'Qua': false,
+          'Qui': false,
+          'Sex': false,
+          'Sab': false,
+          'Dom': false,
         };
       }
     });
@@ -123,13 +172,14 @@ class _HomePageState extends State<HomePage> {
         weekHabitGoals[week] = {};
       }
       selectedWeek = '1ª Semana';
-      
+
       _initializeDefaultHabits();
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('🎉 Novo mês iniciado! Todos os hábitos foram resetados.'),
+        content:
+            Text('🎉 Novo mês iniciado! Todos os hábitos foram resetados.'),
         backgroundColor: Colors.green,
         duration: Duration(seconds: 3),
       ),
@@ -160,7 +210,7 @@ class _HomePageState extends State<HomePage> {
             .collection('monthly_habits')
             .doc(selectedMonth)
             .set(monthData);
-        
+
         print('✅ Hábitos de $selectedMonth salvos!');
       }
     } catch (e) {
@@ -173,19 +223,30 @@ class _HomePageState extends State<HomePage> {
       weekHabits[targetWeek] = List.from(weekHabits[sourceWeek]!);
       weekHabitTracker[targetWeek] = {};
       weekHabitGoals[targetWeek] = {};
-      
+
       for (var habit in weekHabits[targetWeek]!) {
         weekHabitTracker[targetWeek]![habit] = {
-          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-          'Sex': false, 'Sab': false, 'Dom': false,
+          'Seg': false,
+          'Ter': false,
+          'Qua': false,
+          'Qui': false,
+          'Sex': false,
+          'Sab': false,
+          'Dom': false,
         };
 
         if (weekHabitGoals[sourceWeek]!.containsKey(habit)) {
-          weekHabitGoals[targetWeek]![habit] = Map.from(weekHabitGoals[sourceWeek]![habit]!);
+          weekHabitGoals[targetWeek]![habit] =
+              Map.from(weekHabitGoals[sourceWeek]![habit]!);
         } else {
           weekHabitGoals[targetWeek]![habit] = {
-            'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-            'Sex': false, 'Sab': false, 'Dom': false,
+            'Seg': false,
+            'Ter': false,
+            'Qua': false,
+            'Qui': false,
+            'Sex': false,
+            'Sab': false,
+            'Dom': false,
           };
         }
       }
@@ -194,10 +255,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _setHabitGoal(String habit) {
-    final currentGoals = weekHabitGoals[selectedWeek]![habit] ?? {
-      'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-      'Sex': false, 'Sab': false, 'Dom': false,
-    };
+    final currentGoals = weekHabitGoals[selectedWeek]![habit] ??
+        {
+          'Seg': false,
+          'Ter': false,
+          'Qua': false,
+          'Qui': false,
+          'Sex': false,
+          'Sab': false,
+          'Dom': false,
+        };
 
     Map<String, bool> selectedDays = Map.from(currentGoals);
 
@@ -216,7 +283,10 @@ class _HomePageState extends State<HomePage> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFFF8EBBE), Color(0xFFE2AC3F).withOpacity(0.1)],
+                    colors: [
+                      Color(0xFFF8EBBE),
+                      Color(0xFFE2AC3F).withOpacity(0.1)
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -232,7 +302,8 @@ class _HomePageState extends State<HomePage> {
                             color: Color(0xFFE2AC3F).withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.flag, color: Color(0xFFE2AC3F), size: 24),
+                          child: Icon(Icons.flag,
+                              color: Color(0xFFE2AC3F), size: 24),
                         ),
                         SizedBox(width: 12),
                         Expanded(
@@ -247,16 +318,15 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-                    
                     SizedBox(height: 16),
-                    
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Color(0xFF7BA58D).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Color(0xFF7BA58D).withOpacity(0.3)),
+                        border: Border.all(
+                            color: Color(0xFF7BA58D).withOpacity(0.3)),
                       ),
                       child: Text(
                         habit,
@@ -268,9 +338,7 @@ class _HomePageState extends State<HomePage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    
                     SizedBox(height: 20),
-                    
                     Text(
                       'Selecione os dias da semana:',
                       style: TextStyle(
@@ -279,14 +347,20 @@ class _HomePageState extends State<HomePage> {
                         color: Color(0xFF2A0308),
                       ),
                     ),
-                    
                     SizedBox(height: 16),
-                    
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (var day in ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'])
+                        for (var day in [
+                          'Seg',
+                          'Ter',
+                          'Qua',
+                          'Qui',
+                          'Sex',
+                          'Sab',
+                          'Dom'
+                        ])
                           AnimatedContainer(
                             duration: Duration(milliseconds: 200),
                             child: ChoiceChip(
@@ -295,7 +369,9 @@ class _HomePageState extends State<HomePage> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                  color: selectedDays[day]! ? Colors.white : Color(0xFF2A0308),
+                                  color: selectedDays[day]!
+                                      ? Colors.white
+                                      : Color(0xFF2A0308),
                                 ),
                               ),
                               selected: selectedDays[day]!,
@@ -313,9 +389,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                       ],
                     ),
-                    
                     SizedBox(height: 24),
-                    
                     Row(
                       children: [
                         Expanded(
@@ -342,16 +416,18 @@ class _HomePageState extends State<HomePage> {
                           child: ElevatedButton(
                             onPressed: () {
                               setState(() {
-                                weekHabitGoals[selectedWeek]![habit] = selectedDays;
+                                weekHabitGoals[selectedWeek]![habit] =
+                                    selectedDays;
                               });
                               _saveHabitsToFirestore();
                               Navigator.of(context).pop();
-                              
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Row(
                                     children: [
-                                      Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                      Icon(Icons.check_circle,
+                                          color: Colors.white, size: 20),
                                       SizedBox(width: 8),
                                       Text('Meta definida para $habit'),
                                     ],
@@ -403,7 +479,7 @@ class _HomePageState extends State<HomePage> {
 
   void changeMonth(String newMonth) {
     Navigator.pop(context);
-    
+
     if (newMonth != selectedMonth) {
       showDialog(
         context: context,
@@ -411,18 +487,18 @@ class _HomePageState extends State<HomePage> {
           return AlertDialog(
             title: Text('Iniciar Novo Mês'),
             content: Text('Deseja iniciar o mês de $newMonth?\n\n'
-                         '📅 Todos os hábitos e progresso serão resetados para começar um novo ciclo.'),
+                'Todos os hábitos e progresso serão resetados para começar um novo ciclo.'),
             actions: [
               TextButton(
                 onPressed: () async {
                   Navigator.of(context).pop();
-                  
+
                   setState(() {
                     selectedMonth = newMonth;
                   });
-                  
+
                   await _loadHabitsFromFirestore();
-                  
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('✅ Agora você está no mês de $newMonth!'),
@@ -430,7 +506,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 },
-                child: Text('Sim, Iniciar Novo Mês', style: TextStyle(color: Colors.green)),
+                child: Text('Sim, Iniciar Novo Mês',
+                    style: TextStyle(color: Colors.green)),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -450,7 +527,7 @@ class _HomePageState extends State<HomePage> {
 
   void toggleHabit(String habit, String day) {
     setState(() {
-      weekHabitTracker[selectedWeek]![habit]![day] = 
+      weekHabitTracker[selectedWeek]![habit]![day] =
           !weekHabitTracker[selectedWeek]![habit]![day]!;
     });
     _saveHabitsToFirestore();
@@ -458,7 +535,8 @@ class _HomePageState extends State<HomePage> {
 
   void editHabit(int index) {
     final currentHabits = weekHabits[selectedWeek]!;
-    TextEditingController controller = TextEditingController(text: currentHabits[index]);
+    TextEditingController controller =
+        TextEditingController(text: currentHabits[index]);
 
     showDialog(
       context: context,
@@ -475,17 +553,23 @@ class _HomePageState extends State<HomePage> {
                 if (controller.text.isNotEmpty) {
                   setState(() {
                     final oldHabit = currentHabits[index];
-                    weekHabitTracker[selectedWeek]![controller.text] = 
+                    weekHabitTracker[selectedWeek]![controller.text] =
                         weekHabitTracker[selectedWeek]![oldHabit]!;
                     weekHabitTracker[selectedWeek]!.remove(oldHabit);
-                    
-                    weekHabitGoals[selectedWeek]![controller.text] = 
-                        weekHabitGoals[selectedWeek]![oldHabit] ?? {
-                          'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-                          'Sex': false, 'Sab': false, 'Dom': false,
-                        };
+
+                    weekHabitGoals[selectedWeek]![controller.text] =
+                        weekHabitGoals[selectedWeek]![oldHabit] ??
+                            {
+                              'Seg': false,
+                              'Ter': false,
+                              'Qua': false,
+                              'Qui': false,
+                              'Sex': false,
+                              'Sab': false,
+                              'Dom': false,
+                            };
                     weekHabitGoals[selectedWeek]!.remove(oldHabit);
-                    
+
                     currentHabits[index] = controller.text;
                   });
                   _saveHabitsToFirestore();
@@ -523,13 +607,23 @@ class _HomePageState extends State<HomePage> {
                   setState(() {
                     weekHabits[selectedWeek]!.add(controller.text);
                     weekHabitTracker[selectedWeek]![controller.text] = {
-                      'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-                      'Sex': false, 'Sab': false, 'Dom': false,
+                      'Seg': false,
+                      'Ter': false,
+                      'Qua': false,
+                      'Qui': false,
+                      'Sex': false,
+                      'Sab': false,
+                      'Dom': false,
                     };
-                    
+
                     weekHabitGoals[selectedWeek]![controller.text] = {
-                      'Seg': false, 'Ter': false, 'Qua': false, 'Qui': false, 
-                      'Sex': false, 'Sab': false, 'Dom': false,
+                      'Seg': false,
+                      'Ter': false,
+                      'Qua': false,
+                      'Qui': false,
+                      'Sex': false,
+                      'Sab': false,
+                      'Dom': false,
                     };
                   });
                   _saveHabitsToFirestore();
@@ -550,13 +644,14 @@ class _HomePageState extends State<HomePage> {
 
   void _deleteHabit(int index) {
     final currentHabits = weekHabits[selectedWeek]!;
-    
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Deletar Hábito'),
-          content: Text('Tem certeza que deseja deletar "${currentHabits[index]}" da $selectedWeek?'),
+          content: Text(
+              'Tem certeza que deseja deletar "${currentHabits[index]}" da $selectedWeek?'),
           actions: [
             TextButton(
               onPressed: () {
@@ -583,7 +678,7 @@ class _HomePageState extends State<HomePage> {
 
   void _showCopyOptions(String targetWeek) {
     final previousWeeks = _getPreviousWeeks(targetWeek);
-    
+
     if (previousWeeks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Não há semanas anteriores para copiar')),
@@ -611,7 +706,8 @@ class _HomePageState extends State<HomePage> {
                     ListTile(
                       leading: Icon(Icons.copy),
                       title: Text('Copiar da $sourceWeek'),
-                      subtitle: Text('${weekHabits[sourceWeek]?.length ?? 0} hábitos'),
+                      subtitle: Text(
+                          '${weekHabits[sourceWeek]?.length ?? 0} hábitos'),
                       onTap: () {
                         Navigator.pop(context);
                         _showCopyConfirmation(sourceWeek, targetWeek);
@@ -630,8 +726,11 @@ class _HomePageState extends State<HomePage> {
   List<String> _getPreviousWeeks(String targetWeek) {
     final targetIndex = weeks.indexOf(targetWeek);
     if (targetIndex <= 0) return [];
-    
-    return weeks.sublist(0, targetIndex).where((week) => weekHabits[week]!.isNotEmpty).toList();
+
+    return weeks
+        .sublist(0, targetIndex)
+        .where((week) => weekHabits[week]!.isNotEmpty)
+        .toList();
   }
 
   void _showCopyConfirmation(String sourceWeek, String targetWeek) {
@@ -640,16 +739,19 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return AlertDialog(
           title: Text('Copiar Hábitos'),
-          content: Text('Deseja copiar os ${weekHabits[sourceWeek]!.length} hábitos da $sourceWeek para a $targetWeek? '
-                       'Isso irá substituir os hábitos atuais da $targetWeek.'),
+          content: Text(
+              'Deseja copiar os ${weekHabits[sourceWeek]!.length} hábitos da $sourceWeek para a $targetWeek? '
+              'Isso irá substituir os hábitos atuais da $targetWeek.'),
           actions: [
             TextButton(
               onPressed: () {
                 _copyHabitsToWeek(sourceWeek, targetWeek);
                 Navigator.of(context).pop();
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('✅ Hábitos copiados da $sourceWeek para $targetWeek!')),
+                  SnackBar(
+                      content: Text(
+                          '✅ Hábitos copiados da $sourceWeek para $targetWeek!')),
                 );
               },
               child: Text('Copiar'),
@@ -677,11 +779,13 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     ListTile(
                       title: Text(week, style: TextStyle(fontSize: 16)),
-                      subtitle: Text('${weekHabits[week]?.length ?? 0} hábitos', style: TextStyle(fontSize: 12)),
+                      subtitle: Text('${weekHabits[week]?.length ?? 0} hábitos',
+                          style: TextStyle(fontSize: 12)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (week != '1ª Semana' && _getPreviousWeeks(week).isNotEmpty)
+                          if (week != '1ª Semana' &&
+                              _getPreviousWeeks(week).isNotEmpty)
                             IconButton(
                               icon: Icon(Icons.copy, size: 18),
                               onPressed: () {
@@ -715,7 +819,7 @@ class _HomePageState extends State<HomePage> {
   Map<String, Map<String, bool>> get currentWeekHabitTracker {
     return weekHabitTracker[selectedWeek] ?? {};
   }
-  
+
   Map<String, Map<String, bool>> get currentWeekHabitGoals {
     return weekHabitGoals[selectedWeek] ?? {};
   }
@@ -756,7 +860,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             SizedBox(height: 20),
-            
+
             // HEADER ELEGANTE
             Container(
               padding: EdgeInsets.all(16),
@@ -764,7 +868,10 @@ class _HomePageState extends State<HomePage> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFFE2AC3F).withOpacity(0.1), Color(0xFF7BA58D).withOpacity(0.1)],
+                  colors: [
+                    Color(0xFFE2AC3F).withOpacity(0.1),
+                    Color(0xFF7BA58D).withOpacity(0.1)
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.white.withOpacity(0.5)),
@@ -775,7 +882,8 @@ class _HomePageState extends State<HomePage> {
                   GestureDetector(
                     onTap: _showWeekOptions,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -815,9 +923,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 16),
-                  
+
                   // MÊS
                   GestureDetector(
                     onTap: () {
@@ -848,19 +956,37 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                     ),
                                   ),
-                                  ...['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
-                                      'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'].map(
+                                  ...[
+                                    'JANEIRO',
+                                    'FEVEREIRO',
+                                    'MARÇO',
+                                    'ABRIL',
+                                    'MAIO',
+                                    'JUNHO',
+                                    'JULHO',
+                                    'AGOSTO',
+                                    'SETEMBRO',
+                                    'OUTUBRO',
+                                    'NOVEMBRO',
+                                    'DEZEMBRO'
+                                  ].map(
                                     (month) => ListTile(
                                       title: Text(
                                         month,
                                         style: TextStyle(
                                           fontSize: 14,
-                                          color: month == selectedMonth ? Color(0xFFE2AC3F) : Color(0xFF2A0308),
-                                          fontWeight: month == selectedMonth ? FontWeight.bold : FontWeight.normal,
+                                          color: month == selectedMonth
+                                              ? Color(0xFFE2AC3F)
+                                              : Color(0xFF2A0308),
+                                          fontWeight: month == selectedMonth
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
                                         ),
                                       ),
-                                      trailing: month == selectedMonth 
-                                          ? Icon(Icons.check, color: Color(0xFFE2AC3F), size: 20)
+                                      trailing: month == selectedMonth
+                                          ? Icon(Icons.check,
+                                              color: Color(0xFFE2AC3F),
+                                              size: 20)
                                           : null,
                                       onTap: () => changeMonth(month),
                                     ),
@@ -888,9 +1014,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 8),
-                  
+
                   // FRASE INSPIRADORA
                   Container(
                     padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -911,9 +1037,9 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            
+
             SizedBox(height: 20),
-            
+
             // LISTA DE HÁBITOS
             Expanded(
               child: currentHabits.isEmpty
@@ -921,7 +1047,8 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.emoji_objects_outlined, size: 60, color: Color(0xFFE2AC3F)),
+                          Icon(Icons.emoji_objects_outlined,
+                              size: 60, color: Color(0xFFE2AC3F)),
                           SizedBox(height: 16),
                           Text(
                             'Nenhum hábito nesta semana',
@@ -985,7 +1112,8 @@ class _HomePageState extends State<HomePage> {
                                 children: [
                                   // CABEÇALHO DO HÁBITO
                                   Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     decoration: BoxDecoration(
                                       color: Color(0xFF7BA58D).withOpacity(0.8),
                                       borderRadius: BorderRadius.only(
@@ -1014,32 +1142,42 @@ class _HomePageState extends State<HomePage> {
                                               icon: Container(
                                                 padding: EdgeInsets.all(4),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.orange.withOpacity(0.2),
+                                                  color: Colors.orange
+                                                      .withOpacity(0.2),
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: Text(
                                                   '🔥',
-                                                  style: TextStyle(fontSize: 14),
+                                                  style:
+                                                      TextStyle(fontSize: 14),
                                                 ),
                                               ),
-                                              onPressed: () => _setHabitGoal(habit),
+                                              onPressed: () =>
+                                                  _setHabitGoal(habit),
                                               tooltip: 'Definir meta',
                                               padding: EdgeInsets.zero,
                                               constraints: BoxConstraints(),
                                             ),
-                                            SizedBox(width: 12), // MAIS ESPAÇAMENTO
+                                            SizedBox(
+                                                width: 12), // MAIS ESPAÇAMENTO
                                             // BOTÃO EDITAR
                                             IconButton(
-                                              icon: Icon(Icons.edit, size: 18, color: Colors.white),
+                                              icon: Icon(Icons.edit,
+                                                  size: 18,
+                                                  color: Colors.white),
                                               onPressed: () => editHabit(index),
                                               padding: EdgeInsets.zero,
                                               constraints: BoxConstraints(),
                                             ),
-                                            SizedBox(width: 12), // MAIS ESPAÇAMENTO
+                                            SizedBox(
+                                                width: 12), // MAIS ESPAÇAMENTO
                                             // BOTÃO DELETAR
                                             IconButton(
-                                              icon: Icon(Icons.delete, size: 18, color: Colors.white),
-                                              onPressed: () => _deleteHabit(index),
+                                              icon: Icon(Icons.delete,
+                                                  size: 18,
+                                                  color: Colors.white),
+                                              onPressed: () =>
+                                                  _deleteHabit(index),
                                               padding: EdgeInsets.zero,
                                               constraints: BoxConstraints(),
                                             ),
@@ -1048,45 +1186,71 @@ class _HomePageState extends State<HomePage> {
                                       ],
                                     ),
                                   ),
-                                  
+
                                   // DIAS DA SEMANA
                                   Padding(
                                     padding: EdgeInsets.all(16),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
                                       children: [
-                                        for (var day in ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'])
+                                        for (var day in [
+                                          'Seg',
+                                          'Ter',
+                                          'Qua',
+                                          'Qui',
+                                          'Sex',
+                                          'Sab',
+                                          'Dom'
+                                        ])
                                           Column(
                                             children: [
                                               GestureDetector(
-                                                onTap: () => toggleHabit(habit, day),
+                                                onTap: () =>
+                                                    toggleHabit(habit, day),
                                                 child: AnimatedContainer(
-                                                  duration: Duration(milliseconds: 200),
+                                                  duration: Duration(
+                                                      milliseconds: 200),
                                                   width: 32,
                                                   height: 32,
                                                   decoration: BoxDecoration(
                                                     shape: BoxShape.circle,
-                                                    color: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                    color: weekHabitTracker[
+                                                                selectedWeek]![
+                                                            habit]![day]!
                                                         ? Color(0xFFE2AC3F)
                                                         : Colors.transparent,
                                                     border: Border.all(
-                                                      color: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                      color: weekHabitTracker[
+                                                                  selectedWeek]![
+                                                              habit]![day]!
                                                           ? Color(0xFFE2AC3F)
-                                                          : Color(0xFF2A0308).withOpacity(0.3),
+                                                          : Color(0xFF2A0308)
+                                                              .withOpacity(0.3),
                                                       width: 2,
                                                     ),
-                                                    boxShadow: weekHabitTracker[selectedWeek]![habit]![day]!
+                                                    boxShadow: weekHabitTracker[
+                                                                selectedWeek]![
+                                                            habit]![day]!
                                                         ? [
                                                             BoxShadow(
-                                                              color: Color(0xFFE2AC3F).withOpacity(0.3),
+                                                              color: Color(
+                                                                      0xFFE2AC3F)
+                                                                  .withOpacity(
+                                                                      0.3),
                                                               blurRadius: 4,
-                                                              offset: Offset(0, 2),
+                                                              offset:
+                                                                  Offset(0, 2),
                                                             )
                                                           ]
                                                         : [],
                                                   ),
-                                                  child: weekHabitTracker[selectedWeek]![habit]![day]!
-                                                      ? Icon(Icons.check, color: Colors.white, size: 16)
+                                                  child: weekHabitTracker[
+                                                              selectedWeek]![
+                                                          habit]![day]!
+                                                      ? Icon(Icons.check,
+                                                          color: Colors.white,
+                                                          size: 16)
                                                       : null,
                                                 ),
                                               ),
@@ -1164,12 +1328,12 @@ class _HomePageState extends State<HomePage> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.bar_chart_outlined),
                 activeIcon: Icon(Icons.bar_chart),
-                label: "Progress",
+                label: "Progresso",
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person_outlined),
                 activeIcon: Icon(Icons.person),
-                label: "Account",
+                label: "Conta",
               ),
             ],
             currentIndex: indiceAtual,
